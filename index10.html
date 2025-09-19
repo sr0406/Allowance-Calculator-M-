@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Allowance Hours Calculator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            background: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 900px;
+        }
+        h1, h2 {
+            text-align: center;
+            color: #333;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .input-group select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .input-group.inline-group select {
+            width: 48%;
+            display: inline-block;
+        }
+        .radio-group {
+            margin-top: 5px;
+        }
+        .radio-group label {
+            margin-right: 15px;
+            font-weight: normal;
+        }
+        .week-shift-group {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .week-shift-group h4 {
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        .btn-add {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn-add:hover {
+            background-color: #0056b3;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .total-row {
+            font-weight: bold;
+            background-color: #e9ecef;
+        }
+        .btn-download {
+            margin-top: 20px;
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background-color: #28a745;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn-download:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Allowance Hours Calculator</h1>
+        
+        <form id="calculationForm">
+            <div class="input-group">
+                <label for="employee">Employee:</label>
+                <select id="employee" name="employee" required>
+                    <option value="">Select Employee</option>
+                    <option value="Emp 1">Emp 1</option>
+                    <option value="Emp 2">Emp 2</option>
+                    <option value="Emp 3">Emp 3</option>
+                    <option value="Emp 4">Emp 4</option>
+                </select>
+            </div>
+            
+            <div class="input-group inline-group">
+                <label for="month">Select Month & Year:</label>
+                <select id="month" name="month" required>
+                    <option value="">Month</option>
+                    <option value="01">January</option>
+                    <option value="02">February</option>
+                    <option value="03">March</option>
+                    <option value="04">April</option>
+                    <option value="05">May</option>
+                    <option value="06">June</option>
+                    <option value="07">July</option>
+                    <option value="08">August</option>
+                    <option value="09">September</option>
+                    <option value="10">October</option>
+                    <option value="11">November</option>
+                    <option value="12">December</option>
+                </select>
+                <select id="year" name="year" required>
+                    <option value="">Year</option>
+                    <script>
+                        const currentYear = new Date().getFullYear();
+                        for (let y = currentYear - 2; y <= currentYear + 5; y++) {
+                            document.write(`<option value="${y}">${y}</option>`);
+                        }
+                    </script>
+                </select>
+            </div>
+            
+            <div id="manual-selection">
+                </div>
+
+            <button type="button" class="btn-add" id="generateBtn">Generate Monthly Report</button>
+        </form>
+
+        <h2>Monthly Breakdown</h2>
+        <table id="resultsTable">
+            <thead>
+                <tr>
+                    <th>Employee Name</th>
+                    <th>Week</th>
+                    <th>No of Days Worked</th>
+                    <th>Shift</th>
+                    <th>Total Hours Worked</th>
+                    <th>Allowance Hours</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+
+        <button class="btn-download" id="downloadExcelBtn">Download Excel</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        const monthSelect = document.getElementById('month');
+        const yearSelect = document.getElementById('year');
+        const manualDiv = document.getElementById('manual-selection');
+
+        let allRecords = [];
+
+        monthSelect.addEventListener('change', generateManualShiftOptions);
+        yearSelect.addEventListener('change', generateManualShiftOptions);
+
+        function getWeekRanges(year, month) {
+            const weeks = [];
+            const firstDayOfMonth = new Date(year, month, 1);
+            const lastDayOfMonth = new Date(year, month + 1, 0);
+
+            let currentDay = new Date(firstDayOfMonth);
+            let workWeekDays = [];
+            
+            while (currentDay <= lastDayOfMonth) {
+                const dayOfWeek = currentDay.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+
+                if (dayOfWeek >= 1 && dayOfWeek <= 5) { // Monday to Friday
+                    workWeekDays.push(new Date(currentDay));
+                }
+
+                if (dayOfWeek === 0 || dayOfWeek === 6 || currentDay.getDate() === lastDayOfMonth.getDate()) {
+                    if (workWeekDays.length > 0) {
+                        weeks.push({
+                            start: workWeekDays[0],
+                            end: workWeekDays[workWeekDays.length - 1]
+                        });
+                        workWeekDays = [];
+                    }
+                }
+                currentDay.setDate(currentDay.getDate() + 1);
+            }
+            
+            if (workWeekDays.length > 0) {
+                weeks.push({
+                    start: workWeekDays[0],
+                    end: workWeekDays[workWeekDays.length - 1]
+                });
+            }
+            
+            return weeks;
+        }
+
+        function generateManualShiftOptions() {
+            const selectedMonth = monthSelect.value;
+            const selectedYear = yearSelect.value;
+            manualDiv.innerHTML = '';
+
+            if (!selectedMonth || !selectedYear) return;
+
+            const weeks = getWeekRanges(parseInt(selectedYear), parseInt(selectedMonth) - 1);
+            const monthName = new Date(selectedYear, parseInt(selectedMonth) - 1).toLocaleString('default', { month: 'long' });
+
+            weeks.forEach((week, index) => {
+                const weekGroup = document.createElement('div');
+                weekGroup.className = 'week-shift-group';
+                weekGroup.innerHTML = `
+                    <h4>Week ${index + 1} (${week.start.getDate()} - ${week.end.getDate()} ${monthName}):</h4>
+                    <div class="radio-group">
+                        <input type="radio" id="week${index + 1}Morning" name="week${index + 1}Shift" value="Morning" required>
+                        <label for="week${index + 1}Morning">Morning</label>
+                        <input type="radio" id="week${index + 1}Night" name="week${index + 1}Shift" value="Night">
+                        <label for="week${index + 1}Night">Night</label>
+                    </div>
+                `;
+                manualDiv.appendChild(weekGroup);
+            });
+        }
+
+        document.getElementById('generateBtn').addEventListener('click', function() {
+            const form = document.getElementById('calculationForm');
+            if (form.checkValidity()) {
+                const employeeName = document.getElementById('employee').value;
+                const selectedMonth = document.getElementById('month').value;
+                const selectedYear = document.getElementById('year').value;
+
+                const weeks = getWeekRanges(parseInt(selectedYear), parseInt(selectedMonth) - 1);
+                
+                let totalAllowanceForEmployee = 0;
+
+                weeks.forEach((week, index) => {
+                    const shift = document.querySelector(`input[name="week${index + 1}Shift"]:checked`).value;
+                    let daysWorked = 0;
+                    let totalHoursWorked = 0;
+                    let allowanceHours = 0;
+                    
+                    const tempDay = new Date(week.start);
+                    while (tempDay <= week.end) {
+                        const dayOfWeek = tempDay.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+                        
+                        if (shift === 'Morning') {
+                            if (dayOfWeek >= 1 && dayOfWeek <= 4) { // Monday to Thursday
+                                daysWorked += 1;
+                                if (dayOfWeek >= 1 && dayOfWeek <= 3) { // Monday to Wednesday
+                                    totalHoursWorked += 12;
+                                    allowanceHours += 5;
+                                } else if (dayOfWeek === 4) { // Thursday
+                                    totalHoursWorked += 8;
+                                    allowanceHours += 1;
+                                }
+                            }
+                        } else if (shift === 'Night') {
+                            if (dayOfWeek >= 1 && dayOfWeek <= 3) { // Monday to Wednesday
+                                daysWorked += 1;
+                                totalHoursWorked += 12;
+                                allowanceHours += 8;
+                            }
+                        }
+                        tempDay.setDate(tempDay.getDate() + 1);
+                    }
+
+                    totalAllowanceForEmployee += allowanceHours;
+
+                    const monthName = new Date(selectedYear, parseInt(selectedMonth) - 1).toLocaleString('default', { month: 'long' });
+
+                    allRecords.push({
+                        employeeName,
+                        week: `Week ${index + 1} (${week.start.getDate()} - ${week.end.getDate()} ${monthName})`,
+                        daysWorked,
+                        shift,
+                        totalHoursWorked,
+                        allowanceHours
+                    });
+                });
+                
+                // Add the total row for the employee
+                allRecords.push({
+                    employeeName,
+                    week: 'Total',
+                    daysWorked: '',
+                    shift: '',
+                    totalHoursWorked: '',
+                    allowanceHours: totalAllowanceForEmployee
+                });
+
+                renderTable();
+                form.reset();
+            } else {
+                form.reportValidity();
+            }
+        });
+
+        function renderTable() {
+            const tableBody = document.querySelector('#resultsTable tbody');
+            tableBody.innerHTML = '';
+
+            allRecords.forEach(record => {
+                const newRow = tableBody.insertRow();
+                newRow.className = record.week === 'Total' ? 'total-row' : '';
+
+                newRow.innerHTML = `
+                    <td>${record.employeeName}</td>
+                    <td>${record.week}</td>
+                    <td>${record.daysWorked}</td>
+                    <td>${record.shift}</td>
+                    <td>${record.totalHoursWorked}</td>
+                    <td>${record.allowanceHours}</td>
+                `;
+            });
+        }
+
+        document.getElementById('downloadExcelBtn').addEventListener('click', function() {
+            const dataToExport = allRecords.map(record => ({
+                'Employee Name': record.employeeName,
+                'Week': record.week,
+                'No of Days Worked': record.daysWorked,
+                'Shift': record.shift,
+                'Total Hours Worked': record.totalHoursWorked,
+                'Allowance Hours': record.allowanceHours,
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(dataToExport);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Monthly Allowance Report");
+            XLSX.writeFile(wb, "Monthly_Allowance_Report.xlsx");
+        });
+    </script>
+</body>
+</html>
