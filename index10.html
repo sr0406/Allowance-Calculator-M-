@@ -169,7 +169,9 @@
                     <th>No of Days Worked</th>
                     <th>Shift</th>
                     <th>Total Hours Worked</th>
-                    <th>Allowance Hours</th>
+                    <th>Evening Allowance</th>
+                    <th>Night Allowance</th>
+                    <th>Total Allowance Hours</th>
                 </tr>
             </thead>
             <tbody>
@@ -263,12 +265,15 @@
                 const weeks = getWeekRanges(parseInt(selectedYear), parseInt(selectedMonth) - 1);
                 
                 let totalAllowanceForEmployee = 0;
+                let totalEveningAllowanceForEmployee = 0;
+                let totalNightAllowanceForEmployee = 0;
 
                 weeks.forEach((week, index) => {
                     const shift = document.querySelector(`input[name="week${index + 1}Shift"]:checked`).value;
                     let daysWorked = 0;
                     let totalHoursWorked = 0;
-                    let allowanceHours = 0;
+                    let eveningAllowance = 0;
+                    let nightAllowance = 0;
                     
                     const tempDay = new Date(week.start);
                     while (tempDay <= week.end) {
@@ -279,23 +284,27 @@
                                 daysWorked += 1;
                                 if (dayOfWeek >= 1 && dayOfWeek <= 3) { // Monday to Wednesday
                                     totalHoursWorked += 12;
-                                    allowanceHours += 5;
+                                    eveningAllowance += 5;
                                 } else if (dayOfWeek === 4) { // Thursday
                                     totalHoursWorked += 8;
-                                    allowanceHours += 1;
+                                    eveningAllowance += 1;
                                 }
                             }
                         } else if (shift === 'Night') {
                             if (dayOfWeek >= 1 && dayOfWeek <= 3) { // Monday to Wednesday
                                 daysWorked += 1;
                                 totalHoursWorked += 12;
-                                allowanceHours += 8;
+                                eveningAllowance += 3;
+                                nightAllowance += 8;
                             }
                         }
                         tempDay.setDate(tempDay.getDate() + 1);
                     }
-
-                    totalAllowanceForEmployee += allowanceHours;
+                    
+                    const totalAllowance = eveningAllowance + nightAllowance;
+                    totalAllowanceForEmployee += totalAllowance;
+                    totalEveningAllowanceForEmployee += eveningAllowance;
+                    totalNightAllowanceForEmployee += nightAllowance;
 
                     const monthName = new Date(selectedYear, parseInt(selectedMonth) - 1).toLocaleString('default', { month: 'long' });
 
@@ -305,18 +314,21 @@
                         daysWorked,
                         shift,
                         totalHoursWorked,
-                        allowanceHours
+                        eveningAllowance,
+                        nightAllowance,
+                        totalAllowance
                     });
                 });
                 
-                // Add the total row for the employee
                 allRecords.push({
                     employeeName,
                     week: 'Total',
                     daysWorked: '',
                     shift: '',
                     totalHoursWorked: '',
-                    allowanceHours: totalAllowanceForEmployee
+                    eveningAllowance: totalEveningAllowanceForEmployee,
+                    nightAllowance: totalNightAllowanceForEmployee,
+                    totalAllowance: totalAllowanceForEmployee
                 });
 
                 renderTable();
@@ -340,7 +352,9 @@
                     <td>${record.daysWorked}</td>
                     <td>${record.shift}</td>
                     <td>${record.totalHoursWorked}</td>
-                    <td>${record.allowanceHours}</td>
+                    <td>${record.eveningAllowance}</td>
+                    <td>${record.nightAllowance}</td>
+                    <td>${record.totalAllowance}</td>
                 `;
             });
         }
@@ -352,7 +366,9 @@
                 'No of Days Worked': record.daysWorked,
                 'Shift': record.shift,
                 'Total Hours Worked': record.totalHoursWorked,
-                'Allowance Hours': record.allowanceHours,
+                'Evening Allowance': record.eveningAllowance,
+                'Night Allowance': record.nightAllowance,
+                'Total Allowance Hours': record.totalAllowance
             }));
 
             const ws = XLSX.utils.json_to_sheet(dataToExport);
